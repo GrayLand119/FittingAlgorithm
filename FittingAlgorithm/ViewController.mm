@@ -36,10 +36,20 @@ using namespace cv;
     [self.view addSubview:_resultImgView];
     
     self.view.backgroundColor = [UIColor blackColor];
+
     
-    Mat originImg = [self genCommonImage];
-    Mat resultImg = [self genCommonImage];
+    // repeat test
+    [NSTimer scheduledTimerWithTimeInterval:1.0f target:self selector:@selector(doTest) userInfo:nil repeats:YES];
+
+}
+
+- (void)doTest {
     
+    static Mat originImg = [self genCommonImage];
+    static Mat resultImg = [self genCommonImage];
+    
+    originImg = Scalar::all(0);
+    resultImg = Scalar::all(0);
     /*===============================================================
      线性拟合测试
      ===============================================================*/
@@ -53,10 +63,10 @@ using namespace cv;
         NSUInteger y = x + ((arc4random_uniform(1)==1) ? random : -random);
         [arrayY addObject:@(y)];
         
-//        circle(img, cvPoint((int)x, (int)y), 3, cvScalar(0,255,0), FILLED);
+        //        circle(img, cvPoint((int)x, (int)y), 3, cvScalar(0,255,0), FILLED);
     }
     
-    int insertNum = 3;
+    int insertNum = 2 + arc4random_uniform(3);
     
     for (int i = 0; i < insertNum; i++) {
         // random pick a point
@@ -77,23 +87,64 @@ using namespace cv;
     
     // Original
     [self drawLineInImage:originImg withXArray:arrayX yArray:arrayY];
-    
     putText(originImg, "Simulator data", cvPoint(100,25), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0));
-
-    _originImgView.image = [UIImage imageWithCVMat:originImg];
-    
-    [self drawLineInImage:resultImg withXArray:arrayX yArray:arrayY];
     
     // Result
+    [self drawLineInImage:resultImg withXArray:arrayX yArray:arrayY];
     putText(resultImg, "Result", cvPoint(100,25), FONT_HERSHEY_SIMPLEX, 1, Scalar(0,255,0));
-    
-    _resultImgView.image = [UIImage imageWithCVMat:resultImg];
     
     if(YES)// fit line test
     {
+        Mat opt = [self genCommonImage];
+        
+        std::vector<Point2f> points;
+        
+        for (int i = 0; i < arrayX.count; i++) {
+            points.push_back(Point2f([arrayX[i] floatValue], [arrayY[i] floatValue]));
+        }
+        //        Mat dest = Mat(points, <#int _type#>);
+        Vec4f line;
+        
+        fitLine(Mat(points), line, CV_DIST_L1, 0, 0.01, 0.01);
+        
+        std::cout << "line: (" << line[0] << "," << line[1] << ")(" << line[2] << "," << line[3] << ")\n";
+        
+        //        vx, vy, x0, y0
+        float vx = line[0];
+        float vy = line[1];
+        float X0 = line[2];
+        float Y0 = line[3];
+        // y = kx + b
+        double k = vy / vx;
+        double b = Y0 - k * X0;
+        
+        // Y0 = vy/vx * X0 + b
+        // Y1 = vy/vx * X1 + b
+        // Y1 - Y0 = vy/vx * (X1 - X0)
+        // Y1 - Y0 = k * (X1 - X0)
+        // dy = vy/vx * dx
+        
+        
+        CvPoint p1 = cvPoint(10, 10 * k + b);
+        CvPoint p2 = cvPoint(590, 590 * k + b);
+        
+        cv::line(resultImg, p1, p2, Scalar(255,0,0));
         
     }
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        
+        _originImgView.image = [UIImage imageWithCVMat:originImg];
+        _resultImgView.image = [UIImage imageWithCVMat:resultImg];
+    });
+    
 }
+- (void)fitLineWithXArray:(NSArray *)xArray yArray:(NSArray *)yArray {
+    
+    //TODO: 用最小二乘法来实现拟合
+}
+
+
 
 - (void)drawLineInImage:(Mat)image withXArray:(NSArray *)xArray yArray:(NSArray *)yArray {
     
@@ -110,7 +161,7 @@ using namespace cv;
     
     Mat mat;
     mat.create(600, 600, CV_8UC3);
-    mat = Scalar::all(0);
+//    mat = Scalar::all(0);
     
     return mat;
 }
