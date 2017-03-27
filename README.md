@@ -1,6 +1,6 @@
 # FittingAlgorithm
 
-使用OpenCV 进行线性拟合测试
+使用OpenCV进行直线拟合和曲线拟合测试
 
 直线使用
 
